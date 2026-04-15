@@ -1,89 +1,57 @@
-import { useState, useEffect } from "react";
-import { Header } from "./components/Header";
-import { TabNavigation } from "./components/TabNavigation";
-import { Footer } from "./components/Footer";
-import { Toast } from "./components/Toast";
-import { FeedbackButton } from "./components/FeedbackButton";
-import { VoiceTraining } from "./components/VoiceTraining";
-import { CommentAssistant } from "./components/CommentAssistant";
-import { BoldTextMaker } from "./components/BoldTextMaker";
-import { SmartConnect } from "./components/SmartConnect";
-import { ResumeStudio } from "./components/ResumeStudio";
-import { Logo } from "./components/Logo";
-import { useToast } from "./hooks/useToast";
-import { isTrainingComplete, getUsageCount } from "./utils/storage";
+import React, { useState } from 'react';
+import Header from './components/Header';
+import CommentForm from './components/CommentForm';
+import SuggestionCards from './components/SuggestionCards';
+import { CommentSuggestion, ToneType } from './types';
+import { generateSuggestions } from './utils/commentGenerator';
 
-export type TabType = 'comments' | 'bold' | 'connect' | 'resume';
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('comments');
-  const [showTraining, setShowTraining] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+const App: React.FC = () => {
+  const [suggestions, setSuggestions] = useState<CommentSuggestion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
-  const { toast, showToast, hideToast } = useToast();
+  const maxUsage = 80;
 
-  useEffect(() => {
-    const trainingComplete = isTrainingComplete();
-    if (!trainingComplete) {
-      setShowTraining(true);
-    }
-    setUsageCount(getUsageCount());
+  const handleSubmit = async (postText: string, tone: ToneType) => {
+    setIsLoading(true);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const newSuggestions = generateSuggestions(postText, tone);
+    setSuggestions(newSuggestions);
+    setUsageCount(prev => Math.min(prev + 1, maxUsage));
     setIsLoading(false);
-  }, []);
-
-  const handleGenerate = () => {
-    setUsageCount(getUsageCount());
   };
-
-  const handleCopy = (_text: string) => {
-    showToast('Copied to clipboard');
-  };
-
-  const handleTrainingComplete = () => {
-    setShowTraining(false);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FFFFFF' }}>
-        <div className="text-center">
-          <Logo size="lg" showText={false} />
-          <p className="text-sm mt-4" style={{ color: '#64748B' }}>Loading Growth AI...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (showTraining) {
-    return <VoiceTraining onComplete={handleTrainingComplete} />;
-  }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFFFFF' }}>
-      <Header used={usageCount} limit={10} />
+    <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF' }}>
+      <Header usageCount={usageCount} maxUsage={maxUsage} />
       
-      <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6">
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-        
-        <div className="mt-6">
-          {activeTab === 'comments' && (
-            <CommentAssistant onGenerate={handleGenerate} onCopy={handleCopy} />
+      <main className="max-w-2xl mx-auto px-4 py-6 md:py-8">
+        <div className="space-y-6">
+          {/* Hero Section */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#2C3E50' }}>
+              LinkedIn Comment Assistant
+            </h1>
+            <p className="text-sm" style={{ color: '#64748B' }}>
+              Generate engaging comments for LinkedIn posts with AI
+            </p>
+          </div>
+
+          {/* Comment Form */}
+          <CommentForm onSubmit={handleSubmit} isLoading={isLoading} />
+
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
+            <div className="pt-4">
+              <SuggestionCards suggestions={suggestions} />
+            </div>
           )}
-          {activeTab === 'bold' && <BoldTextMaker onCopy={handleCopy} />}
-          {activeTab === 'connect' && <SmartConnect />}
-          {activeTab === 'resume' && <ResumeStudio />}
         </div>
       </main>
-
-      <Footer />
-      
-      <Toast 
-        message={toast.message}
-        isVisible={toast.isVisible}
-        onHide={hideToast}
-      />
-      
-      <FeedbackButton />
     </div>
   );
-}
+};
+
+export default App;

@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { CheckCircle } from "lucide-react";
+import React, { useEffect } from 'react';
+import { CheckCircle } from 'lucide-react';
 
 interface ToastProps {
   message: string;
@@ -8,7 +8,7 @@ interface ToastProps {
   duration?: number;
 }
 
-export function Toast({ message, isVisible, onHide, duration = 2000 }: ToastProps) {
+const Toast: React.FC<ToastProps> = ({ message, isVisible, onHide, duration = 2000 }) => {
   useEffect(() => {
     if (isVisible && duration > 0) {
       const timer = setTimeout(onHide, duration);
@@ -19,9 +19,7 @@ export function Toast({ message, isVisible, onHide, duration = 2000 }: ToastProp
   if (!isVisible) return null;
 
   return (
-    <div 
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in"
-    >
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
       <div 
         className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg"
         style={{ backgroundColor: '#1E293B', color: '#FFFFFF' }}
@@ -31,4 +29,6 @@ export function Toast({ message, isVisible, onHide, duration = 2000 }: ToastProp
       </div>
     </div>
   );
-}
+};
+
+export default Toast;

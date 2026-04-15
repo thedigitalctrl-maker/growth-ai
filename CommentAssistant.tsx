@@ -1,19 +1,29 @@
-import { useState } from "react";
-import { Copy, Check, AlertCircle } from "lucide-react";
-import { Button } from "./ui/button";
-import { Textarea } from "./ui/textarea";
-import { Card, CardContent } from "./ui/card";
-import { Label } from "./ui/label";
-import type { ToneType, CommentSuggestion } from "../types";
-import { generatePersonalizedSuggestions } from "../utils/generateSuggestions";
-import { getVoiceProfile, canGenerate, incrementUsage, getUsageCount } from "../utils/storage";
+import React, { useState } from 'react';
+import { Send, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
+import { ToneType, CommentSuggestion } from '../types';
+import { generateSuggestions } from '../utils/commentGenerator';
 
 interface CommentAssistantProps {
   onGenerate: () => void;
   onCopy?: (text: string) => void;
+  usageCount: number;
+  usageLimit: number;
 }
 
-export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) {
+const toneOptions: { value: ToneType; label: string }[] = [
+  { value: 'humorous', label: 'Humorous' },
+  { value: 'funny', label: 'Funny' },
+  { value: 'debate', label: 'Debate' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'general-short', label: 'General Short' }
+];
+
+const CommentAssistant: React.FC<CommentAssistantProps> = ({
+  onGenerate,
+  onCopy,
+  usageCount,
+  usageLimit
+}) => {
   const [postText, setPostText] = useState('');
   const [selectedTone, setSelectedTone] = useState<ToneType>('professional');
   const [suggestions, setSuggestions] = useState<CommentSuggestion[]>([]);
@@ -21,17 +31,7 @@ export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const usageCount = getUsageCount();
-  const canGen = canGenerate();
-  const showWarning = usageCount >= 8 && usageCount < 10;
-
-  const tones: { id: ToneType; label: string }[] = [
-    { id: 'humorous', label: 'Humorous' },
-    { id: 'funny', label: 'Funny' },
-    { id: 'debate', label: 'Debate' },
-    { id: 'professional', label: 'Professional' },
-    { id: 'general-short', label: 'General Short' }
-  ];
+  const canGenerate = usageCount < usageLimit;
 
   const handleGenerate = async () => {
     if (!postText.trim()) {
@@ -39,7 +39,7 @@ export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) 
       return;
     }
 
-    if (!canGen) {
+    if (!canGenerate) {
       setError('Daily limit reached. Please try again tomorrow.');
       return;
     }
@@ -47,29 +47,23 @@ export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) 
     setIsGenerating(true);
     setError(null);
 
-    try {
-      const profile = getVoiceProfile();
-      const results = generatePersonalizedSuggestions(postText, selectedTone, profile);
-      setSuggestions(results);
-      incrementUsage();
-      onGenerate();
-    } catch (err) {
-      setError('Unable to generate suggestions. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
+    // Simulate AI generation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const results = generateSuggestions(postText, selectedTone);
+    setSuggestions(results);
+    setIsGenerating(false);
+    onGenerate();
   };
 
   const handleCopy = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
-      if (onCopy) {
-        onCopy(text);
-      }
+      if (onCopy) onCopy(text);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      // Fallback for older browsers
+      // Fallback
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -77,62 +71,80 @@ export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) 
       document.execCommand('copy');
       document.body.removeChild(textArea);
       setCopiedId(id);
-      if (onCopy) {
-        onCopy(text);
-      }
+      if (onCopy) onCopy(text);
       setTimeout(() => setCopiedId(null), 2000);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Usage indicator */}
-      <div className="flex items-center justify-between text-sm">
-        <span style={{ color: '#64748B' }}>Daily usage:</span>
-        <span 
-          className="font-medium"
-          style={{ color: usageCount >= 8 ? '#DC2626' : '#2C3E50' }}
-        >
-          {usageCount} / 10
-        </span>
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold" style={{ color: '#2C3E50' }}>
+          AI Comment Assistant
+        </h2>
+        <p className="text-sm mt-2" style={{ color: '#64748B' }}>
+          Generate engaging comments that spark conversations
+        </p>
       </div>
 
-      {/* Warning */}
-      {showWarning && (
+      {/* Limit Warning */}
+      {!canGenerate && (
         <div 
-          className="flex items-center gap-2 p-3 rounded-lg text-sm"
-          style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}
+          className="flex items-center gap-3 p-4 rounded-lg"
+          style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}
         >
-          <AlertCircle className="w-4 h-4" />
-          You have {10 - usageCount} generations remaining today.
+          <AlertCircle className="w-5 h-5" style={{ color: '#DC2626' }} />
+          <p className="text-sm" style={{ color: '#DC2626' }}>
+            You have reached your daily limit of {usageLimit} generations. Come back tomorrow!
+          </p>
         </div>
       )}
 
-      {/* Post input */}
+      {/* Post Input */}
       <div className="space-y-2">
-        <Label htmlFor="post" style={{ color: '#2C3E50' }}>Paste LinkedIn Post</Label>
-        <Textarea
-          id="post"
+        <label 
+          htmlFor="post-text" 
+          className="block text-sm font-semibold"
+          style={{ color: '#2C3E50' }}
+        >
+          Paste LinkedIn Post
+        </label>
+        <textarea
+          id="post-text"
           value={postText}
           onChange={(e) => setPostText(e.target.value)}
-          placeholder="Paste the LinkedIn post content here..."
-          className="min-h-32 resize-none"
-          disabled={!canGen || isGenerating}
+          placeholder="Paste the LinkedIn post you want to comment on..."
+          className="textarea"
+          style={{ minHeight: '120px' }}
+          disabled={!canGenerate}
         />
+        <div className="flex justify-between text-xs" style={{ color: '#94A3B8' }}>
+          <span>Include the full post for better suggestions</span>
+          <span>{postText.length} characters</span>
+        </div>
       </div>
 
-      {/* Tone selector */}
-      <div className="space-y-2">
-        <Label style={{ color: '#2C3E50' }}>Select Tone</Label>
+      {/* Tone Selector */}
+      <div className="space-y-3">
+        <label 
+          className="block text-sm font-semibold"
+          style={{ color: '#2C3E50' }}
+        >
+          Select Comment Tone
+        </label>
         <div className="flex flex-wrap gap-2">
-          {tones.map((tone) => (
+          {toneOptions.map((tone) => (
             <button
-              key={tone.id}
-              onClick={() => setSelectedTone(tone.id)}
+              key={tone.value}
+              type="button"
+              onClick={() => setSelectedTone(tone.value)}
+              disabled={!canGenerate}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
-                backgroundColor: selectedTone === tone.id ? '#0A66C2' : '#F1F5F9',
-                color: selectedTone === tone.id ? '#FFFFFF' : '#64748B'
+                backgroundColor: selectedTone === tone.value ? '#0A66C2' : '#F8FAFC',
+                color: selectedTone === tone.value ? '#FFFFFF' : '#64748B',
+                border: `1px solid ${selectedTone === tone.value ? '#0A66C2' : '#E2E8F0'}`
               }}
             >
               {tone.label}
@@ -141,17 +153,26 @@ export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) 
         </div>
       </div>
 
-      {/* Generate button */}
-      <Button
+      {/* Submit Button */}
+      <button
         onClick={handleGenerate}
-        disabled={!canGen || isGenerating || !postText.trim()}
-        className="w-full font-semibold"
-        style={{ backgroundColor: '#0A66C2', color: '#FFFFFF' }}
+        disabled={!postText.trim() || isGenerating || !canGenerate}
+        className="btn btn-primary w-full py-3"
       >
-        {isGenerating ? 'Generating suggestions...' : 'Generate Suggestions'}
-      </Button>
+        {isGenerating ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Generating Comments...
+          </>
+        ) : (
+          <>
+            <Send className="w-5 h-5" />
+            Generate Comment Suggestions
+          </>
+        )}
+      </button>
 
-      {/* Error message */}
+      {/* Error */}
       {error && (
         <div 
           className="p-3 rounded-lg text-sm"
@@ -163,52 +184,71 @@ export function CommentAssistant({ onGenerate, onCopy }: CommentAssistantProps) 
 
       {/* Suggestions */}
       {suggestions.length > 0 && (
-        <div className="space-y-4 pt-4">
-          <h3 className="font-semibold" style={{ color: '#2C3E50' }}>Suggestions</h3>
-          {suggestions.map((suggestion) => (
-            <Card key={suggestion.id} className="border-slate-200">
-              <CardContent className="pt-4">
-                {suggestion.isBestMatch && (
+        <div className="space-y-4 pt-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold" style={{ color: '#2C3E50' }}>
+              Suggested Comments
+            </h3>
+            <span className="badge badge-primary">{suggestions.length} options</span>
+          </div>
+
+          {suggestions.map((suggestion, index) => (
+            <div 
+              key={suggestion.id}
+              className="card"
+              style={{ 
+                borderColor: index === 0 ? '#0A66C2' : '#E2E8F0',
+                backgroundColor: index === 0 ? '#F8FBFE' : '#FFFFFF'
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
                   <span 
-                    className="inline-block px-2 py-1 rounded text-xs font-medium mb-2"
-                    style={{ backgroundColor: '#E8F4FD', color: '#0A66C2' }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: '#0A66C2', color: '#FFFFFF' }}
                   >
-                    Best Match
+                    {index + 1}
                   </span>
-                )}
-                <p className="text-sm mb-3" style={{ color: '#2C3E50' }}>
-                  {suggestion.text}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
+                  {index === 0 && (
+                    <span className="badge badge-primary">Best Match</span>
+                  )}
+                </div>
+              </div>
+              <p className="text-sm mb-4" style={{ color: '#2C3E50' }}>
+                {suggestion.text}
+              </p>
+              <div className="flex justify-end">
+                <button
                   onClick={() => handleCopy(suggestion.text, suggestion.id)}
-                  className="text-sm"
+                  className="btn btn-outline text-sm"
+                  style={{
+                    backgroundColor: copiedId === suggestion.id ? '#0A66C2' : '#FFFFFF',
+                    color: copiedId === suggestion.id ? '#FFFFFF' : '#2C3E50'
+                  }}
                 >
                   {copiedId === suggestion.id ? (
                     <>
-                      <Check className="w-3 h-3 mr-1" />
-                      Copied to clipboard
+                      <Check className="w-4 h-4" />
+                      Copied
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3 h-3 mr-1" />
+                      <Copy className="w-4 h-4" />
                       Copy
                     </>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
+                </button>
+              </div>
+            </div>
           ))}
-        </div>
-      )}
 
-      {/* Empty state */}
-      {suggestions.length === 0 && !isGenerating && (
-        <p className="text-sm text-center py-8" style={{ color: '#94A3B8' }}>
-          No suggestions yet. Paste a post and select a tone.
-        </p>
+          <p className="text-center text-sm" style={{ color: '#64748B' }}>
+            Personalize these comments for better engagement
+          </p>
+        </div>
       )}
     </div>
   );
-}
+};
+
+export default CommentAssistant;

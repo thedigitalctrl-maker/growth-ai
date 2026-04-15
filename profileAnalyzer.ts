@@ -1,4 +1,4 @@
-import type { ProfileIntent, ProfileAnalysis, ConnectionRecommendation } from "../types";
+import { ProfileAnalysis, ConnectionRecommendation } from '../types';
 
 const MOCK_CONNECTIONS: ConnectionRecommendation[] = [
   {
@@ -38,23 +38,12 @@ const MOCK_CONNECTIONS: ConnectionRecommendation[] = [
   }
 ];
 
-const INTENT_CONFIG: Record<ProfileIntent, { color: string; bgColor: string }> = {
-  'Job Seeker': { color: '#1E40AF', bgColor: '#DBEAFE' },
-  'Funding Seeker': { color: '#7C3AED', bgColor: '#EDE9FE' },
-  'Sales Prospecting': { color: '#059669', bgColor: '#D1FAE5' },
-  'Networking': { color: '#D97706', bgColor: '#FEF3C7' }
-};
-
-export function getIntentConfig(intent: ProfileIntent) {
-  return INTENT_CONFIG[intent];
-}
-
 export async function analyzeProfile(profileUrl: string): Promise<ProfileAnalysis> {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1500));
 
   // Mock analysis based on URL patterns
-  let intent: ProfileIntent = 'Networking';
+  let intent: ProfileAnalysis['intent'] = 'Networking';
   
   if (profileUrl.toLowerCase().includes('job') || profileUrl.toLowerCase().includes('hire')) {
     intent = 'Job Seeker';
