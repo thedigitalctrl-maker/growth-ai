@@ -1,0 +1,5 @@
+"scripts": {
+  "dev": "next dev",   // if using Next.js
+  "start": "next start",
+  "build": "next build"
+}
